@@ -10,24 +10,75 @@ function Set() {
 
 Set.prototype.load = function(setId){
 
-	if (confirm('Confirm to load previously saved timetable to current table?\n\nCurrent timetable will be discarded')){
+	if (confirm('Load the timetable saved in slot #'+(setId+1)+'?\n\nCurrent timetable will be discarded.')){
 		setRowFunction = document.getElementById('setRow_function'+setId);
 		$('#master').fadeOut(200);
 		arrModule = this.getModuleInfo(setId);
-		tt.module = new Array(); //reset tt.module
+		
 		this.ripIndex = 0;
 		this.ripMax = arrModule.length;
 		this.ripModule = arrModule;
 		this.fixedArray = this.getFixedArray(setId);
 		this.onTableArray = this.getOnTableArray(setId);
-		this.rip(); //start ripping!
+		//check if the currently ripped modules is the same as the one in arrModule
+		var tempArrMod = []; $.each(tt.module, function(i){	tempArrMod[i] = tt.module[i].code;	});
+		if($(arrModule).not(tempArrMod).length == 0 && $(tempArrMod).not(arrModule).length == 0){
+			st.renderSetRow();
+			ripper.rip_finish();
+		}else{
+			//nope, not the same. rip.
+			tt.module = new Array(); //reset tt.module
+			this.rip(); //start ripping!
+		}
 	}
 
 };
 
+Set.prototype.loadLink = function(linkData){
+	var tempData = linkData.split('-')[0];
+	var arrModule = tempData.split('x');
+	
+	tempData = linkData.split('-')[1];
+	tempData = tempData.replace(/j/g, '_lab_');
+	tempData = tempData.replace(/o/g, '_tut_');
+	tempData = tempData.replace(/h/g, '_lec_');
+	this.onTableArray = tempData.split(".");
+	
+	tempData = linkData.split('-')[2];
+	tempData = tempData.replace(/j/g, '_lab_');
+	tempData = tempData.replace(/o/g, '_tut_');
+	tempData = tempData.replace(/h/g, '_lec_');
+	this.fixedArray = tempData.split(".");
+	
+	this.ripIndex = 0;
+	this.ripMax = arrModule.length;
+	this.ripModule = arrModule;
+	//check if the currently ripped modules is the same as the one in arrModule
+	var tempArrMod = []; $.each(tt.module, function(i){	tempArrMod[i] = tt.module[i].code;	});
+	if($(arrModule).not(tempArrMod).length == 0 && $(tempArrMod).not(arrModule).length == 0){
+		st.renderSetRow();
+		ripper.rip_finish();
+	}else{
+		//nope, not the same. rip.
+		tt.module = new Array(); //reset tt.module
+		this.rip(); //start ripping!
+	}
+}
+
 Set.prototype.rip = function() {
-	ripper.url = this.ripModule[this.ripIndex].split('z')[1];
-	this.request('readModule.php?url='+escape(ripper.url));
+	var i; showPage2();
+	//insert the modules into page 2
+	for (i=1;i<12;i++){
+		$('#code'+i).val("");
+	}
+	for(i=1;i<(this.ripMax+1);i++){
+		//$('#code'+i).val(this.ripModule[i-1].split('z')[0]);
+		$('#code'+i).val(this.ripModule[i-1]);
+	}
+	ripper.rip_all();
+	
+	//ripper.url = this.ripModule[this.ripIndex].split('z')[1];
+	//this.request('readModule.php?url='+escape(ripper.url));
 };
 
 Set.prototype.save = function(setId) {
@@ -40,11 +91,32 @@ Set.prototype.save = function(setId) {
 };
 
 Set.prototype.remove = function(setId) {
-	if (confirm('Remove slot #'+(setId+1)+' from cookie?')){
+	if (confirm('Remove the timetable saved in slot #'+(setId+1)+'?' + '')){
 		this.removeCookie(setId);
 		this.updateFunctions(setId);
 	}
 };
+
+Set.prototype.email = function(setId){
+	var u, tempStr;
+	if(isNaN(setId)==true){
+		u = this.ripModuleInfo() + '-' + this.ripOnTableArray() + '-' + this.ripFixedArray();
+		tempStr = "the displayed timetable";
+	}else{
+		u = getCookie('module_set'+setId);
+		tempStr = "the timetable saved in slot #" + (setId + 1);
+	}
+	var tempURL = document.URL.indexOf("?");
+	if(tempURL==-1){
+		tempURL = document.URL;
+	}else{
+		tempURL = document.URL.substring(0,tempURL);
+	}
+	tempURL += "?linkData=" + u;
+	get_short_url(tempURL, "limchd", "R_d9e8de12a103f5f0a19b1f5e6380c46a", function(short_url){
+		showLinkPopup(tempStr,short_url);
+	});
+}
 
 //rendering buttonssss...
 Set.prototype.renderButton = function(imgsrc, onclick, title) {
@@ -69,6 +141,9 @@ Set.prototype.aRemove = function(setId) {
 Set.prototype.aSave = function(setId) {
 	return this.renderButton(imgSave.src, 'st.save('+setId+')', 'save');
 };
+Set.prototype.aEmail = function(setId) {
+	return this.renderButton(imgEmail.src, 'st.email('+setId+')', 'share');
+};
 
 Set.prototype.updateFunctions = function(setId) {
 
@@ -77,12 +152,13 @@ Set.prototype.updateFunctions = function(setId) {
 	//remove all nodes first
 	while(setRowFunction.hasChildNodes()) setRowFunction.removeChild(setRowFunction.lastChild);
 
-	//render three buttons...
+	//render buttons...
 	arrModuleCode = this.readModuleCode(setId);
 	if (arrModuleCode.length > 0) {
 		setRowFunction.appendChild(this.aLoad(setId, arrModuleCode));
 		setRowFunction.appendChild(this.aReplace(setId));
 		setRowFunction.appendChild(this.aRemove(setId));
+		setRowFunction.appendChild(this.aEmail(setId));
 	}else{
 		setRowFunction.appendChild(this.aSave(setId)); //and append a save button
 	}
@@ -91,6 +167,7 @@ Set.prototype.updateFunctions = function(setId) {
 
 Set.prototype.renderSetRow = function(){
 	var setRow = document.getElementById('setRow');
+	setRow.innerHTML = "";
 	table = document.createElement('table');
 	tr = document.createElement('tr');
 	for (i=0;i<this.maxSlot;i++) {
@@ -101,7 +178,7 @@ Set.prototype.renderSetRow = function(){
 		span.id = 'setRow_function'+i;
 
 		arrModuleCode = this.readModuleCode(i);
-		if (arrModuleCode.length > 0) span.appendChild(this.aLoad(i, arrModuleCode));
+		if (arrModuleCode.length > 0){ span.appendChild(this.aLoad(i, arrModuleCode)); span.appendChild(this.aEmail(i)); }
 
 		td.appendChild(img1); td.appendChild(span);
 		tr.appendChild(td);
@@ -148,7 +225,10 @@ Set.prototype.removeCookie = function(setId) {
 Set.prototype.ripModuleInfo = function() {
 	str = '';
 	for (i=0;i<tt.module.length;i++) {
-		str += tt.module[i].code + 'z' + tt.module[i].link + 'x';
+		//str += tt.module[i].code + 'z' + tt.module[i].link + 'x';
+		//str += tt.module[i].code + 'x';		//URL support temporarily removed -danny
+		//Fix: accept only the module's first code if it has multiple codes aka crosslisted
+		str += tt.module[i].code.split(" / ")[0] + 'x';
 	}
 	return str.substring(0,str.length-1); //remove last x
 };
@@ -302,7 +382,7 @@ Set.prototype.decompressNodeMaster = function(data) {
 	data = data.replace(/za/g, '<div class="subNode" id="s_');
 	return data;
 }
-*/
+
 
 Set.prototype.request = function(url) {
 	$.get(url, function(data) {
@@ -310,8 +390,8 @@ Set.prototype.request = function(url) {
 		if (/Module Detailed Information for/i.test(data)) {
 			ripper.sPage = data;
 			ripper.getModule();
-			if (++st.ripIndex < st.ripMax) {
-				st.rip(); //continue ripping
+			if (++this.ripIndex < this.ripMax) {
+				this.rip(); //continue ripping
 			}else{
 				$('#page1').fadeOut(300);
 				$('#page2').fadeOut(300);
@@ -319,9 +399,9 @@ Set.prototype.request = function(url) {
 				setTimeout(function() {
 					if (!document.getElementById('tableMaster')) {
 						tt.createTable();
-						st.showSetFunctions();
+						this.showSetFunctions();
 					}
-					tt.createAllNode(st.fixedArray, st.onTableArray);
+					tt.createAllNode(this.fixedArray, this.onTableArray);
 					$('#page3').fadeIn(200);
 					$('#master').fadeIn(200);
 				}, 500);
@@ -329,7 +409,7 @@ Set.prototype.request = function(url) {
 		}
 	});
 };
-
+*/
 
 function setCookie(sName, sValue, oExpires, sPath, sDomain, bSecure) {
 	var sCookie = sName + "=" + encodeURIComponent(sValue);

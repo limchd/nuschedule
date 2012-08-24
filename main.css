@@ -75,8 +75,8 @@ div#comment_feedback{display:none;background:#fff;width:250px;padding:5px;border
 div#page{z-index:2;}
 /* page 1 */
 div#page1{ text-align:right;z-index:3;}
-div#showcase{ font-family:serif;background:#000;margin-top:100px;padding:100px 0 10px;}
-div#showcase h1,h2{font-weight:normal;width:800px;margin:0 auto;color:#fff;background:#000;}
+div#showcase{ font-family:serif;background:#804D00;margin-top:100px;padding:100px 0 10px;}
+div#showcase h1,h2{font-weight:normal;width:800px;margin:0 auto;color:#fff;}
 div#showcase h1{font-size:40px;font-style: italic; }
 div#showcase h2{color:#777;font-size:13px;font-style: italic;}
 div#showcase2 { width:800px; margin:10px auto;}
@@ -102,3 +102,12 @@ div#page3 p { font-size:12px;}
 div#page3 p img.leftAlign{float:left;margin:0 5px 5px 0;}
 div#page3 p img.rightAlign{float:right;margin:0 0 5px 5px;}
 
+#modal_popup{
+	background: #fff;
+	color: #000;
+	font-size: 12px;
+	padding: 10px;
+	position: absolute;
+	text-align: center;
+	display: none;
+}

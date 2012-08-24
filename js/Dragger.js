@@ -124,7 +124,7 @@ function showAvailableCell() {
 	switch (arrtid[2]) {
 	case 'lec':
 		for (var p=0; p < module.lecture.length; p++) {
-			tt.showNode(module, module.lecture[p], module_id, p);
+			tt.showNode(module.code, module.lecture[p], module_id, p);
 		}
 		break;
 	case 'tut':

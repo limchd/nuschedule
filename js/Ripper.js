@@ -145,8 +145,8 @@ ret.prototype._start = function() {
 };
 
 ret.prototype.rip_all = function() {
-	this.job_queue.reset();;
-
+	this.job_queue.reset();
+	
 	tt.module = new Array();
 
 	(function(ripper) {
@@ -230,8 +230,7 @@ ret.prototype.getModule = function ($page) {
 	var $moduleInfoTable = $("table.tableframe:eq(0)", $page);
 
 	//ripping module code
-	var moduleCode =
-	$("tr:eq(1)>td:eq(1)", $moduleInfoTable).text().trim();
+	var moduleCode = $("tr:eq(1)>td:eq(1)", $moduleInfoTable).text().trim();
 	var url = this.url;
 
 	//exam day
@@ -264,38 +263,45 @@ ret.prototype.getModule = function ($page) {
 
 ret.prototype.ripLecture = function($page) {
 
-	var $lectureTable = $("table.tableframe:eq(0) ~ table:eq(0)", $page);
+	//var $lectureTable = $("table.tableframe:eq(0) ~ table:eq(0)", $page);
+	var x=0; var $lectureTable = $("tr.tableheader:eq("+x+")", $page);
+	while ($lectureTable.html().indexOf("Lecture Time Table")==-1){
+		x++;	
+		$lectureTable = $("tr.tableheader:eq("+x+")", $page);
+	}$lectureTable = $lectureTable.parent();
 
 	var arrLecture = new Array();
 
 	// if (! /No Lecture Class/.test(this.sPage)) { //has lecture
 		//ripping all the lectures
 		$("table", $lectureTable).each(function() {
-			var sBlock = $("td", this).html();
-
-			//splitting the arrblock, to get separated piece of data
-			var arrBlock = sBlock.split('<br>');
-			var title = arrBlock[0].trim().substring(3);
-
+			var arrSession = [];
 			//session manipulation
-			var nSession = Math.floor(arrBlock.length/2)-1;
-			var arrSession = new Array();
-
-			var phrase1, phrase2, arrCell;
-			var res, day, start, end, place;
-			var type;
-
-			for (var i = 0; i < nSession; i++) {
-				phrase1 = arrBlock[i * 2 + 1];
-				phrase2 = arrBlock[i * 2 + 2];
-				arrCell = new Array();
-
-				res = LESSON_TIME_RE.exec(phrase1);
-				day = convertDay(res[1]);
-				start = parseInt(res[2]);
-				end = parseInt(res[3]);
-				place = res[4];
-
+			var tableRows = $("tr",this);
+			var totalRows = tableRows.length;
+			var arrCells = [];
+			var title, day, start, end, place, type;
+			$.each(tableRows, function(i, objTR){
+				arrCells = [];
+				$("td", objTR).each(function(){
+					arrCells.push($.trim($(this).text()));
+				});
+				
+				//Skip irrelevant rows
+				if(arrCells[1]!="LECTURE" && arrCells[1]!="SECTIONAL TEACHING"){ return true; }
+				
+				//2/8/12: Dear CORS, please don't do this...
+				if(arrCells.length<7 || arrCells[0]==""){ return true; }
+				
+				//Now process the data
+				title = arrCells[1] + " [" + arrCells[0] + "]";
+				day = convertDay(arrCells[3]);
+				start = parseInt(arrCells[4]);
+				end = parseInt(arrCells[5]);
+				place = arrCells[6];
+				type = arrCells[2].indexOf("EVEN") != -1 ? 2 :
+					arrCells[2].indexOf("ODD") != -1 ? 1 : 0;
+					
 				// test if number is half hour
 				if ((start) % 100 != 0) {
 					start = start - 30;
@@ -303,22 +309,23 @@ ret.prototype.ripLecture = function($page) {
 				if ((end) % 100 != 0) {
 					end = end + 30;
 				}
-
-				type = phrase2.indexOf("EVEN") != -1 ? 2 :
-					phrase2.indexOf("ODD") != -1 ? 1 : 0;
-
+				
 				//pushing cells that this session will occupy
+				var arrCell = new Array();
 				for (var t = start; t < end; t += 100) {
 					arrCell.push('w' + day + 't' + t);
 				}
-
-				//creating the particular session object, and push into the lecture.
-				arrSession.push(
-					new Session(day,start,end,type,place,arrCell));
-			}//end of session manipulation
-
-			//insert new lecture
-			arrLecture.push(new Part(title, 'lec', arrSession));
+				
+				//add a new lecture session
+				arrSession.push(new Session(day,start,end,type,place,arrCell));
+				
+				//Check if this is a new session or lecture
+				if(i == (totalRows-1) || $.trim($($("td",tableRows[i+1])[0]).text()) != arrCells[0]){
+					//the next row is in a diff lecture. insert the lecture.
+					arrLecture.push(new Part(title, 'lec', arrSession));
+					arrSession = [];
+				}
+			});
 		});
 
 	// }//end if
@@ -328,56 +335,70 @@ ret.prototype.ripLecture = function($page) {
 
 ret.prototype.ripTutorial = function($page) {
 
-	var $tutorialTable = $("table.tableframe:eq(0) ~ table:eq(1)", $page);
+	//var $tutorialTable = $("table.tableframe:eq(0) ~ table:eq(1)", $page);
+	var x=0; var $tutorialTable = $("tr.tableheader:eq("+x+")", $page);
+	while ($tutorialTable.html().indexOf("Tutorial Time Table")==-1){
+		x++;	
+		$tutorialTable = $("tr.tableheader:eq("+x+")", $page);
+	}$tutorialTable = $tutorialTable.parent();
 
 	var arrTutorial = new Array();
 
 	// if (! /No Tutorial Class/.test(this.sPage)) { //has tutorial
 		//ripping all the tutorials
 		$("table", $tutorialTable).each(function() {
-			var sBlock = $("td", this).html();
-
-			//splitting the arrblock, to get separated piece of data
-			var arrBlock = sBlock.split('<br>');
-			var title = arrBlock[0].trim().substring(3);
-
-			//tutorial type
-			var tutType = title.indexOf("LABORATORY") != -1 ? 'lab' : 'tut';
-
+			var arrSession = [];
 			//session manipulation
-			var nSession = Math.floor(arrBlock.length/2)-1;
-			var arrSession = new Array();
-
-			var phrase1, phrase2, arrCell;
-			var res, day, start, end, place;
-			var type;
-
-			for (var i = 0; i < nSession; i++) {
-				phrase1 = arrBlock[i * 2 + 1];
-				phrase2 = arrBlock[i * 2 + 2];
-				arrCell = new Array();
-
-				res = LESSON_TIME_RE.exec(phrase1);
-				day = convertDay(res[1]);
-				start = parseInt(res[2]);
-				end = parseInt(res[3]);
-				place = res[4];
-
-				type = phrase2.indexOf("EVEN") != -1 ? 2 :
-					phrase2.indexOf("ODD") != -1 ? 1 : 0;
-
+			var tableRows = $("tr",this);
+			var totalRows = tableRows.length;
+			var arrCells = [];
+			var title, day, start, end, place, type, tutType;
+			$.each(tableRows, function(i, objTR){
+				arrCells = [];
+				$("td", objTR).each(function(){
+					arrCells.push($.trim($(this).text()));
+				});
+				
+				//Skip the title row
+				if(arrCells[0]=="Class"){ return true; }
+				
+				//2/8/12: Dear CORS, please don't do this...
+				if(arrCells.length<7 || arrCells[0]==""){ return true; }
+				
+				//Now process the data
+				title = arrCells[1] + " [" + arrCells[0] + "]";
+				tutType = arrCells[1].indexOf("LABORATORY") != -1 ? 'lab' : 'tut';
+				day = convertDay(arrCells[3]);
+				start = parseInt(arrCells[4]);
+				end = parseInt(arrCells[5]);
+				place = arrCells[6];
+				type = arrCells[2].indexOf("EVEN") != -1 ? 2 :
+					arrCells[2].indexOf("ODD") != -1 ? 1 : 0;
+					
+				// test if number is half hour
+				if ((start) % 100 != 0) {
+					start = start - 30;
+				}
+				if ((end) % 100 != 0) {
+					end = end + 30;
+				}
+				
 				//pushing cells that this session will occupy
+				var arrCell = new Array();
 				for (var t = start; t < end; t += 100) {
 					arrCell.push('w' + day + 't' + t);
 				}
-
-				//creating the particular session object, and push into the tutorial
-				arrSession.push(
-					new Session(day,start,end,type,place,arrCell));
-			}//end of session manipulation
-
-			//insert new tutorial
-			arrTutorial.push(new Part(title, tutType, arrSession));
+				
+				//add a new tutorial session
+				arrSession.push(new Session(day,start,end,type,place,arrCell));
+				
+				//Check if this is a new session or tutorial
+				if(i == (totalRows-1) || $.trim($($("td",tableRows[i+1])[0]).text()) != arrCells[0]){
+					//the next row is in a diff tutorial. insert the tutorial.
+					arrTutorial.push(new Part(title, tutType, arrSession));
+					arrSession = [];
+				}
+			});
 		});
 
 	// }//end if
@@ -394,6 +415,10 @@ ret.prototype.ripNext = function() {
 };
 
 ret.prototype.rip_finish = function() {
+	this.freshRip = true;
+	
+	if(st.ripMax>0){ this.display_timetable(); st.ripMax = 0; }
+	
 	$('#ripButton')
 	.val('Re-Scan All')
 	.attr("disabled", false);
@@ -416,8 +441,17 @@ ret.prototype.rip_finish = function() {
 };
 
 ret.prototype.display_timetable = function() {
-	tt.createTable();
-	tt.createAllNode();
+	if(this.freshRip==true){
+		$("#master").html("");
+		tt.resetTable();
+		tt.createTable();
+		if(st.ripMax>0){
+			tt.createAllNode(st.fixedArray, st.onTableArray);
+		}else{
+			tt.createAllNode();
+		}
+		this.freshRip = false;
+	}
 	st.showSetFunctions();
 	showPage3();
 };

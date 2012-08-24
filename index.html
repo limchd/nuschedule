@@ -3,10 +3,12 @@
 <html>
 <head>
 	<meta http-equiv="Content-type" content="text/html; charset=utf-8">
-	<title>NUSchedule - a NUS timetable builder</title>
+	<title>NUSchedule - Web-based NUS Timetable Builder (Unofficial)</title>
 	<link rel="stylesheet" href="main.css" type="text/css" media="screen" title="no title" charset="utf-8">
-	<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
+	<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
 	<script src="js/jquery.xdomainajax.js" type="text/javascript" charset="utf-8"></script>
+	<script src="js/jquery.bpopup-0.7.0.min.js" type="text/javascript" charset="utf-8"></script>
+	
 	<script src="js/Util.js" type="text/javascript" charset="utf-8"></script>
 	<script src="js/Signals.js" type="text/javascript" charset="utf-8"></script>
 	<script src="js/Object.js" type="text/javascript" charset="utf-8"></script>
@@ -19,7 +21,7 @@
 	<script src="js/Dragger.js" type="text/javascript" charset="utf-8"></script>
 
 	<script>
-	tempLink = ['','AR1102', 'AR2223', 'BE1000', 'BFS1001', 'CS1101', 'CS2100', '','','','','',''];
+	tempLink = ['','EC1101E', 'EE1001', 'MA1506', 'BFS1001', 'CS1101', 'CS2100', '','','','','',''];
 	function ripInto() {
 		for (i=1;i<12;i++){
 			document.getElementById('code'+i).value=tempLink[i];
@@ -30,6 +32,7 @@
 
 </head>
 <body onload="st.renderSetRow();" onunload="return false">
+	<div id="modal_popup"></div>
 	<div id="status"><p id="stat0">ready</p></div>
 	<div id="setRow"></div>
 	<div id="page">
@@ -41,20 +44,15 @@
 						</div>
 			<div id="release_note">
 				<div style="width:800px;margin:0px auto;border-right:1px solid #aaa;padding-right:6px;">
-					<h1>August 7, 2010</h1>
-					<p>Chris has created an <a href="http://github.com/chrisirhc/nuschedule/">open source repository</a> for this application and is currently maintaining it.</p>
-				<h1>July 25, 2010</h1>
-				<p>chaoszcat has no time to maintain his script and this 'project' is currently hosted by wirelessed and roticv</p>
-				<p>NUS CORS changed the url to the detailed module information. As a result, the 'next' button disappeared. This bug is fixed.<br />
-				</p>
-				<p>Lecture sessions which start/end in half hour blocks (e.g. 1830-2030) will be rounded up to the nearest hour block (e.g. 1800-2100).</p>
-				</div>
-
-				<div style="width:800px;margin:0px auto;border-right:1px solid #aaa;padding-right:6px;">
-				<h1>June 4, 2008</h1>
-				<p>fixing cookie retrieving mechanism</p>
-				<p>fixing typo</p>
-				<p>changing page#2 style</p>
+					<h1>Please consider using <a href="http://www.nusmods.com/">nusmods</a>, another excellent builder!</h1>
+					<h1>August 2, 2012</h1>
+					<p>We've shifted to <a href="http://www.nuschedule.info">www.nuschedule.info</a>!</p>
+					<h1>July 30, 2012</h1>
+					<p>Fixed loads/saves/shares with cross-listed modules.</p>
+					<h1>July 29, 2012</h1>
+					<p style="color:#ff0000">Now you can quickly share your timetable via a bit.ly URL!<br /></p><p>Ported Ripper fixes to rctay's latest master branch. Fixed loads and saves. Added "Back to Modules" from builder page.</p>
+					<h1>July 28, 2012</h1>
+					<p>I'm temporarily maintaining this project here until I can get the crew behind the <a href="http://sirh.cc/nuschedule/">original site</a> to update their builder.</p>
 				</div>
 			</div>
 
@@ -62,57 +60,71 @@
 
 		<div id="page2">
 	<div style="width:800px;margin:0 auto;">
-			<h4><b>Step 1:</b> Add module by module code</h4>
-			<h6 style="margin-bottom:10px;">Please provide module codes that you want to add, max 12</h6>
+			<h4><b>Step 1:</b> Enter up to 12 module codes below.</h4>
+			<h6 style="margin-bottom:10px;">You can hide modules in the timetable later.<br /><span style="color:gray">(30/7/2012: For cross-listed modules, only <b>one</b> of its module codes will work (the first code listed on CORS).</span></h6>
 
-			<p style="margin-bottom:10px;color:#f33;">Look Here! <a href="javascript://" onclick="ripInto();ripper.testApplication();">Just wanna test this application? Click here.</a> (I will fill some example for you to play with)</p>
+			<!-- <p style="margin-bottom:10px;color:#f33;">Look Here! <a href="javascript://" onclick="ripInto();ripper.testApplication();">Just wanna test this application? Click here.</a> (I will fill some example for you to play with)</p> -->
 
 			<script type="text/javascript">
-jQuery(document).ready(function($) {
-	var d = new Date();
-	var y1, y2, sem;
-	y1 = y2 = d.getFullYear();
-	// sem 2 is up to april
-	if (d.getMonth() <= 3) {
-		y1--;
-		sem = 2;
-	} else {
-		y2++;
-		sem = 1;
-	}
-	$("#ay option").each(function() {
-		this.value = this.innerHTML = y1+"/"+y2;
-		return false;
-	});
-	$("#semester").first().val(sem);
+$(document).ready(function($) {
+	//modal popup stuff		
+		//This method hides the popup when the escape key is pressed
+		$(document).keyup(function(e) {
+			if (e.keyCode == 27) {
+				closePopup(fadeOutTime);
+			}
+		});
+
+	//updating the AY and Sem
+		var d = new Date();
+		var y1, y2, sem;
+		y1 = y2 = d.getFullYear();
+		// sem 2 is up to april
+		if (d.getMonth() <= 3) {
+			y1--;
+			sem = 2;
+		} else {
+			y2++;
+			sem = 1;
+		}
+		$("#ay option").each(function() {
+			this.value = this.innerHTML = y1+"/"+y2;
+			return false;
+		});
+		$("#semester").first().val(sem);
+	
+	//check if there is any linkdata
+		checkURLParams();
 });
 			</script>
 			<p style="margin:30px 0 10px;">Academic Year: <select id="ay" style="margin-right:10px;"><option value=""></option></select>
 			<select id="semester"><option value="1">Semester 1</option><option value="2">Semester 2</option></select></p>
 			<div id="boxes"></div>
 </div>
-			<div style="background:#000;margin-top:220px;color:#aaa;padding:10px 0 30px;">
+			<div style="background:#804D00;margin-top:220px;color:#aaa;padding:10px 0 30px;">
 				<div style="width:800px;margin:0 auto;">
 					<h4><b>Step 2:</b> Ripping button</h4>
-					<h6 style="margin-bottom:10px;">Click <span style="color:#fff">Start Ripping</span> when you have done.<br/>Click <span style="color:#fff">Next</span> if you are ready to start the application, or click <span style="color:#fff">Re-Scan All</span> if you want to re-scan any invalid links</h6>
+					<h6 style="margin-bottom:10px;">Click <span style="color:#fff">Start Ripping</span> when you are done.<br/>Click <span style="color:#fff">Next</span> after ripping is complete, or click <span style="color:#fff">Re-Scan All</span> if you want to re-scan any invalid links (or newly added module codes)</h6>
 
 
-					<p><input type="button" id="ripButton" onmouseup="ripper.rip_all()" value="Start Ripping" class="button" />
+					<p><input type="button" id="ripButton" onclick="ripper.rip_all()" value="Start Ripping" class="button" />
 					<input type="button" id="re-rip-errors_button" onclick="ripper.rip_errorneous()" value="Re-Scan Errorneous" class="button" />
-					<input type="button" id="nextButton" onclick="ripper.display_timetable();this.onclick=''" value="Next" class="button" style="display:none" /></p>
+					<input type="button" id="nextButton" onclick="ripper.display_timetable();" value="Next" class="button" style="display:none" /></p>
 				</div>
 			</div>
 		</div>
 
 		<div id="page3">
 			<div id="content">
-				<h4><b>Step 3:</b> What you have to know</h4>
+				<input type="button" id="backButton" onmouseup="showPage2()" value="<< Back to Modules" class="button" /><br /><br />
+				<h4><b>Step 3:</b> Building your timetable</h4>
 
-				<p><img src="images/note/1.gif" class="leftAlign" />Drag and drop any time-span of a module anywhere in the screen, provided that they have a small tab in their first cell, so you can hold and drag it. A grayed time-span is fixed and you cannot drag it.</p>
-				<p><img src="images/note/2.gif" class="rightAlign" />So when you hold the tab and start dragging, the application will immediately show you any available slot(s) (a <b style="color:#027;">blue</b> slot) that you can drag onto.</p>
-				<p><img src="images/note/3.gif" class="leftAlign" />When you find your favourite slot and want to drop on it, continue to hold the tab, and <b>touch the slot</b>. The slot will now turns <span style="color:#aa0">yellow</span>. <b>Drop it</b>, and you will have successfully swapped it.</p>
+				<p><img src="images/note/1.gif" class="leftAlign" />Drag and drop any module on the timetable. All other available timeslot(s) will appear when you start dragging.</p>
+				<p><img src="images/note/3.gif" class="leftAlign" />If there are too many available slots in the same cell, drop the module on the timeslot's tab.</p>
 
-				<p><img src="images/note/4.gif" class="leftAlign" />So this will be the last thing to know. This is <b>Module Viewer</b>. Since this application is built on ripping information from CORS Module Listing, nothing can be done to predict unusual behaviour of certain time-span in a module. To overcome this, I have created this little module viewer. Each small button represents an available time slot of a module. They are grouped in <span style="background:#aaa;padding:0 2px;">Lecture</span>, <span style="background:#fec;padding:0 2px;">Tutorial</span>, and <span style="background:#dff;padding:0 2px;">Laboratory</span>. You can click on them, swapping their status between <span style="color:#55f">on board</span>, <span style="color:#444">fixed on board</span>, and <span style="color:#222">off board</span></p>
+				<p><img src="images/note/4.gif" class="leftAlign" />This is the <b>Module Viewer</b>. The exam date is shown beside the module code. Each button represents a <span style="background:#aaa;padding:0 2px;">lecture group</span>, <span style="background:#fec;padding:0 2px;">tutorial group</span>, or <span style="background:#dff;padding:0 2px;">lab session</span>. Clicking on them toggles their status between being <span style="color:#55f">displayed</span>, <span style="color:#444">fixed</span>, and <span style="color:#222">hidden</span>.</p>
+				
+				<p><img src="images/database.png" class="leftAlign" />You can save up to 3 timetables in these slots in the top-right corner. Hover over the buttons to see what they do!</p>
 			</div>
 
 		</div>
@@ -120,6 +132,6 @@ jQuery(document).ready(function($) {
 
 
 	<div id="wrapper"><div id="master"></div></div>
-	<div id="footer"><p>This application was created by Lionel Chan. Victor Loh and Colin Tan has also contributed to this project. Chris Chua is currently making changes to the script. <br/>The modules shown here are not guaranteed to be 100% correct. Use at your own risk</p></div>
+	<div id="footer"><p>This application was originally created by Lionel Chan. Victor Loh, Colin Tan and Chris Chua and rctay contributed to this project.</p></div>
 </body>
 </html>

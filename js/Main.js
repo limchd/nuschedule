@@ -31,9 +31,30 @@ if (document.images) {
 	var imgDatabase = new Image(); imgDatabase.src = 'images/database.png';
 	var imgReplace = new Image(); imgReplace.src = 'images/database_refresh.png';
 	var imgRemove = new Image(); imgRemove.src = 'images/database_delete.png';
+	var imgEmail = new Image();	imgEmail.src = 'images/email.png';
 	//loading module
 	var imgLoadModule = new Image(); imgLoadModule.src = 'images/module_load.gif';
 };
+
+function checkURLParams(){
+	var linkData = getParams()["linkData"];
+	if(typeof linkData != "undefined"){
+		st.loadLink($.trim(linkData));
+	}
+}
+
+function getParams() {
+  var idx = document.URL.indexOf('?');
+  var tempParams = new Object();
+  if (idx != -1) {
+    var pairs = document.URL.substring(idx+1, document.URL.length).split('&');
+    for (var i=0; i<pairs.length; i++) {
+      nameVal = pairs[i].split('=');
+      tempParams[nameVal[0]] = nameVal[1];
+    }
+  }
+return tempParams;
+}
 
 function clearAllInterval(){
 	for (i=0;i<arrInterval.length;i++){
@@ -73,21 +94,29 @@ function replaceElem(newElem, oldElem, timeout) {
 };
 
 function showPage2() {
-	opacity('page1',100,0,500);
-	setTimeout("removeElem('page1')", 600);
-	setTimeout("revealElem('page2')", 700);
+	st.renderSetRow();
+	$("#page1").fadeOut(500);
+	$("#page3").fadeOut(500);
+	$("#master").fadeOut(500);
+	setTimeout("$('#page1').hide()", 700);
+	setTimeout("$('#page3').hide()", 700);
+	setTimeout("$('#master').hide()",700);
+	setTimeout("$('#page2').show()", 600);
 	page2_addBoxes();
 };
 
 function showPage3() {
-	opacity('page2',100,0,500);
-	setTimeout("removeElem('page2')", 600);
-	setTimeout("revealElem('page3')", 600);
-	setTimeout("revealElem('master')",600);
+	$('#page2').fadeOut(500);
+	setTimeout("$('#page2').hide()", 700);
+	setTimeout("$('#page3').show()", 600);
+	setTimeout("$('#master').show()",600);
 };
 
 function page2_addBoxes() {
 	elemBox = document.getElementById('boxes');
+	
+	//don't re-add boxes if they are already made
+	if($(elemBox).html()!=""){ return; }
 
 	for (i=1;i<=Ripper.MAX_RIP_INDEX;i++) {
 
@@ -117,46 +146,6 @@ function page2_addBoxes() {
 
 };
 
-function removeElem(elemId, timeout) {
-	document.getElementById('page').removeChild(document.getElementById(elemId));
-};
-
-function revealElem(elemId) {
-	document.getElementById(elemId).style.display = 'block';
-};
-
-function opacity(id, opacStart, opacEnd, millisec) {
-	//speed for each frame
-	var speed = Math.round(millisec / 100);
-	var timer = 0;
-
-	//determine the direction for the blending, if start and end are the same nothing happens
-	if(opacStart > opacEnd) {
-		for(i = opacStart; i >= opacEnd; i--) {
-			setTimeout("changeOpac(" + i + ",'" + id + "')",(timer * speed));
-			timer++;
-		}
-	} else if(opacStart < opacEnd) {
-		for(i = opacStart; i <= opacEnd; i++)
-			{
-			setTimeout("changeOpac(" + i + ",'" + id + "')",(timer * speed));
-			timer++;
-		}
-	}
-};
-
-//change the opacity for different browsers
-function changeOpac(opacity, id) {
-	object = document.getElementById(id);
-	if (object) {
-		object = object.style;
-		object.opacity = (opacity / 100);
-		object.MozOpacity = (opacity / 100);
-		object.KhtmlOpacity = (opacity / 100);
-		object.filter = "alpha(opacity=" + opacity + ")";
-	}
-};
-
 function test(str){
 	document.getElementById('tester').innerHTML = str;
 };
@@ -164,3 +153,46 @@ function test(str){
 function testp(str){
 	document.getElementById('tester').innerHTML += str;
 };
+
+jQuery.fn.selectText = function(){
+    var doc = document;
+    var element = this[0];
+    if (doc.body.createTextRange) {
+        var range = document.body.createTextRange();
+        range.moveToElementText(element);
+        range.select();
+    } else if (window.getSelection) {
+        var selection = window.getSelection();        
+        var range = document.createRange();
+        range.selectNodeContents(element);
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+};
+
+function get_short_url(long_url, login, api_key, func)
+{
+    $.getJSON(
+        "http://api.bitly.com/v3/shorten?callback=?", 
+        { 
+            "format": "json",
+            "apiKey": api_key,
+            "login": login,
+            "longUrl": long_url
+        },
+        function(response)
+        {
+			if(response["status_txt"]!="OK"){
+				alert("There is an error getting the bit.ly link.\n\nDetails:\nStatus: "+response["status_txt"]+"\nlong_url: "+long_url);
+			}else{
+				func(response["data"]["url"]);
+			}
+        }
+    );
+}
+
+function showLinkPopup(strText, strURL){
+	$("#modal_popup").html("Share " + strText + " using this link:<br /><br /><textarea rows='1' cols='30' readonly='true'>" + strURL + "</textarea>");
+	$("#modal_popup").bPopup({ opacity: 0.4 });
+	$("#modal_popup textarea").focus().selectText();
+}

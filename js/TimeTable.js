@@ -21,7 +21,7 @@ function TimeTable() {
 
 };
 
-TimeTable.prototype.resetTable = function() {
+TimeTable.prototype.resetTable = function(booClearHTML) {
 	this.cell = new Array(6);
 	for (i=0;i<6;i++) {
 		this.cell[i] = new Array(14);
@@ -52,7 +52,7 @@ TimeTable.prototype.createTable = function() {
 };
 
 TimeTable.prototype.createAllNode = function(fixedArray, onTableArray) {
-
+	
 	//cell = tabbing info
 	//fixedarray = array of nodes which indicate 'fixed'
 	//onTablearray = array of nodes which indicate 'on table'
@@ -70,10 +70,11 @@ TimeTable.prototype.createAllNode = function(fixedArray, onTableArray) {
 	}
 
 	if (typeof onTableArray == 'object') { //if creating from a existing table
-		document.getElementById('nodeMaster').innerHTML = '';
-		this.createModuleViewer(fixedArray, onTableArray);
+		$("#nodeMaster").html("");
+		$("#tempNodeMaster").html("");
 		this.resetTable();
-
+		this.createModuleViewer(fixedArray, onTableArray);
+		
 		for (r=0; r<onTableArray.length;r++) {
 			str = onTableArray[r];
 			arr = str.split('_');
@@ -95,7 +96,6 @@ TimeTable.prototype.createAllNode = function(fixedArray, onTableArray) {
 		//creating all nodes
 		for (m=0;m<this.module.length;m++) {
 			moduleCode = this.module[m].code;
-
 			if (this.module[m].lecture.length > 0) {
 				this.createNode(moduleCode, this.module[m].lecture[0], m, 0);
 			}
@@ -118,65 +118,92 @@ TimeTable.prototype.createAllNode = function(fixedArray, onTableArray) {
 
 
 TimeTable.prototype.createModuleViewer = function (fixedArray, onTableArray) {
-	var goThrough = function (type) {
-		/** background colours, these are constants to be put somewhere **/
-		var background = {'lecture': '#eee', 'tutorial': '#eec', 'laboratory': '#cee'};
-		innerHTML += '<div style="position:relative">';
-		for (n=0;n<this.module[m][type].length;n++) {
-			if (this.module[m][type][n].session.length == 0) continue; //skip this object if no session found
-			t = Math.floor(n / 6) * 17;
-			l = n%6 * 21;
-			mat = /\[(.+)\]/.exec(this.module[m][type][n].title)[1];
-			sel = (n == 0) ? '_sel' : '';
-			if (hasArray) {
-				sel = (onTableArray.indexOf(m+'_'+this.shortform[type]+'_'+n) >= 0) ? '_sel' : '';
-				sel = (fixedArray.indexOf(m+'_'+this.shortform[type]+'_'+n) >= 0) ? '_1' : sel;
-			}
-			id = 'k_'+m+'_'+this.shortform[type]+'_'+n;
-			innerHTML += '<div id="'+id+'" class="module_node'+sel+'" style="top:'+t+'px;left:'+l+'px;background-color:'+background[type]+';">'+mat+'</div>';
-		}
-		innerHTML += '</div>';
-		t += 20;
-	};
-
+	
 	elemModuleViewer = document.getElementById('moduleViewer');
 	elemModuleViewer.innerHTML = ''; //clear this out
-
+	/*
 	p = document.createElement('p');
 	p.setAttribute('style','position:absolute;top:390px;left:25px;color:#f30;font-size:12px;');
 	p.innerHTML = 'Take note of the exam date! It may be wrong due to outdated CORS Module Listing. Use this application only after CORS has updated it';
 	elemModuleViewer.appendChild(p);
-
+	*/
+	
+	p = document.createElement('p');
+	p.setAttribute('style','position:absolute;top:390px;left:25px;font-size:12px;');
+	p.innerHTML = '<a title="share" href="javascript://" onClick="st.email()" style="float:left;"><img src="'+imgEmail.src+'" /></a>&nbsp;&nbsp;Share this timetable!';
+	elemModuleViewer.appendChild(p);
+	
 	hasArray = (typeof onTableArray != 'undefined');
-
-	/** loop through each module **/
+	
 	for (m=0;m<this.module.length;m++) {
 		var top = Math.floor(m/6)*115+420;
 		var left = (m%6)*130+25;
 		elemModule = document.createElement('div');
 		elemModule.className = 'module';
 		elemModule.setAttribute('style','top:'+top+'px;left:'+left+'px;');
-
+		
 		innerHTML = '<div class="colorChooser" style="background-color:'+backgroundColor[m]+';"></div>';
 		innerHTML += '<h5>'+this.module[m].code+'&nbsp;<small>'+this.module[m].exam+'</small></h5>';
-
+		
+		
 		var t = 0; //use as padding lecture/tutorial/laboratory
 		if (this.module[m].hasLecture()) {
-			goThrough.call(this, "lecture");
+			innerHTML += '<div style="position:relative">';
+			for (n=0;n<this.module[m].lecture.length;n++) {
+				if (this.module[m].lecture[n].session.length == 0) continue; //skip this object if no session found
+				t = Math.floor(n / 6) * 17;
+				l = n%6 * 21;
+				/.+\[(.+)\]/.test(this.module[m].lecture[n].title); mat = RegExp.$1;
+				sel = (n == 0) ? '_sel' : '';
+				if (hasArray) sel = (onTableArray.indexOf(m+'_lec_'+n) >= 0) ? '_sel' : '';
+				if (hasArray) sel = (fixedArray.indexOf(m+'_lec_'+n) >= 0) ? '_1' : sel;
+				id = 'k_'+m+'_lec_'+n;
+				innerHTML += '<div id="'+id+'" class="module_node'+sel+'" style="top:'+t+'px;left:'+l+'px;background-color:#eee;">'+mat+'</div>';
+			}
+			innerHTML += '</div>';
+			t += 20;
 		}
+		padTop = t;
 		if (this.module[m].hasTutorial()) {
-			goThrough.call(this, "tutorial");
+			innerHTML += '<div style="position:relative">';
+			for (n=0;n<this.module[m].tutorial.length;n++) {
+				if (this.module[m].tutorial[n].session.length == 0) continue; //skip this object if no session found
+				t = padTop + Math.floor(n / 6) * 17;
+				l = n%6 * 21;
+				/.+\[(.+)\]/.test(this.module[m].tutorial[n].title); mat = RegExp.$1;
+				sel = (n == 0) ? '_sel' : '';
+				if (hasArray) sel = (onTableArray.indexOf(m+'_tut_'+n) >= 0) ? '_sel' : '';
+				if (hasArray) sel = (fixedArray.indexOf(m+'_tut_'+n) >= 0) ? '_1' : sel;
+				id = 'k_'+m+'_tut_'+n;
+				innerHTML += '<div id="'+id+'" class="module_node'+sel+'" style="top:'+t+'px;left:'+l+'px;background-color:#eec;">'+mat+'</div>';
+			}
+			innerHTML += '</div>';
+			t += 20;
 		}
+		padTop = t;
 		if (this.module[m].hasLaboratory()) {
-			goThrough.call(this, "laboratory");
+			innerHTML += '<div style="position:relative">';
+			for (n=0;n<this.module[m].laboratory.length;n++) {
+				if (this.module[m].laboratory[n].session.length == 0) continue; //skip this object if no session found
+				t = padTop + Math.floor(n / 6) * 17;
+				l = n%6 * 21;
+				/.+\[(.+)\]/.test(this.module[m].laboratory[n].title); mat = RegExp.$1;
+				sel = (n == 0) ? '_sel' : '';
+				if (hasArray) sel = (onTableArray.indexOf(m+'_lab_'+n) >= 0) ? '_sel' : '';
+				if (hasArray) sel = (fixedArray.indexOf(m+'_lab_'+n) >= 0) ? '_1' : sel;
+				id = 'k_'+m+'_lab_'+n;
+				innerHTML += '<div id="'+id+'" class="module_node'+sel+'" style="top:'+t+'px;left:'+l+'px;background-color:#cee;">'+mat+'</div>';
+			}
+			innerHTML += '</div>';
 		}
-
+		
+		
 		elemModule.innerHTML = innerHTML;
-
+		
 		elemModuleViewer.appendChild(elemModule);
 	}
-
-
+	
+	
 };
 
 TimeTable.prototype.createNode = function(moduleCode, obj, modulePos, objPos, fixed) {
@@ -316,13 +343,13 @@ TimeTable.prototype.showNode = function(moduleCode, obj, modulePos, objPos) { //
 	}
 };
 
-TimeTable.prototype.swapNode = function(targetNode, oldNode, fixed) {
-
-	/** TODO Bug here **/
+TimeTable.prototype.swapNode = function(targetNode, oldNode, fixed) {	
 	//removing old node first
 	arrElemId = oldNode.attr('id').split('_');
 	elemId = 's_'+arrElemId[1]+'_'+arrElemId[2]+'_'+arrElemId[3];
 	$('#'+elemId).remove();
+		var pos = this.onTableArray.indexOf(oldNode.attr('id').substring(2,oldNode.attr('id').length));
+		if (pos >= 0) this.onTableArray.splice(pos,1);
 
 	//fixed is an optional parameter.
 	//indicate whether the node is a fixed node.
@@ -338,15 +365,15 @@ TimeTable.prototype.swapNode = function(targetNode, oldNode, fixed) {
 };
 
 TimeTable.prototype.shortenTitle = function(title) {
-	if (/LECTURE Class \[(.+)\]/.test(title)) {
+	if (/LECTURE \[(.+)\]/.test(title)) {
 		title = 'LEC ['+RegExp.$1+']';
-	}else if (/SECTIONAL TEACHING Class \[(.+)\]/.test(title)) {
+	}else if (/SECTIONAL TEACHING \[(.+)\]/.test(title)) {
 		title = 'LEC ['+RegExp.$1+']';
-	}else if (/DESIGN TUTORIAL Class \[(.+)\]/.test(title)) {
+	}else if (/DESIGN TUTORIAL \[(.+)\]/.test(title)) {
 		title = 'D. TUT ['+RegExp.$1+']';
-	}else if (/TUTORIAL Class \[(.+)\]/.test(title)) {
+	}else if (/TUTORIAL \[(.+)\]/.test(title)) {
 		title = 'TUT ['+RegExp.$1+']';
-	}else if (/LABORATORY Class \[(.+)\]/.test(title)) {
+	}else if (/LABORATORY \[(.+)\]/.test(title)) {
 		title = 'LAB ['+RegExp.$1+']';
 	}
 	return title;
